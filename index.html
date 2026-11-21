@@ -1288,7 +1288,7 @@ const CUTS = [
   { name:'Csülök',  p:[[9,6.5],[16,8],[23,6.5]] },
 ];
 const S6 = {
-  name:'Bontás', music:'verse', D:32,
+  name:'Bontás', music:'verse', D:45,
   init(){
     this.t=0; this.i=0; this.prog=0; this.cutting=false; this.dev=0; this.devN=0; this.acc=[]; this.sayT=2; this.over=false; this.kn={x:W/2,y:H*.75}; this.seen=false;
     this.paths=CUTS.map(c=>{ const pts=[]; for(let q=0;q<c.p.length-1;q++){ const a=c.p[q], b=c.p[q+1]; for(let j=0;j<10;j++) pts.push([lerp(a[0],b[0],j/10),lerp(a[1],b[1],j/10)]); } pts.push(c.p[c.p.length-1]); return pts; });
@@ -1302,14 +1302,18 @@ const S6 = {
     if(this.over) return;
     const left=this.D-this.t;
     if(this.i<CUTS.length && left>0){
-      const path=this.paths[this.i], R=Math.max(20,7*G.k), key=keys[' '];
-      if(ptr.has){ this.seen=true; this.kn.x=ptr.x+wobX(16); this.kn.y=ptr.y-(ptr.type==='touch'?40:0)+wobY(16); }
+      const path=this.paths[this.i], R=Math.max(28,8.5*G.k), key=keys[' '];
+      if(ptr.has){ this.seen=true; this.kn.x=ptr.x+wobX(14); this.kn.y=ptr.y+wobY(14); }   // a kés hegye pontosan az ujj / egér alatt
       if(key){   // billentyűzet: a kés magától halad, közepes pontossággal
         this.seen=true; this.cutting=true; this.prog=Math.min(path.length-1,this.prog+dt*14);
         const pt=this.w(G,path[Math.floor(this.prog)]); this.kn.x=pt.x+wobX(10)+Math.sin(tNow*9)*5; this.kn.y=pt.y+wobY(10); this.dev+=2.6; this.devN++;
       } else if(ptr.down){
-        const cur=this.w(G,path[Math.floor(this.prog)]), d=Math.hypot(this.kn.x-cur.x,this.kn.y-cur.y);
-        if(!this.cutting && d<R*1.3) this.cutting=true;
+        this.prog=Math.floor(this.prog);
+        if(!this.cutting && this.prog===0){   // a vonal túlsó végéről is el lehet kezdeni
+          const e=this.w(G,path[path.length-1]); if(Math.hypot(this.kn.x-e.x,this.kn.y-e.y)<R*1.2) path.reverse();
+        }
+        const cur=this.w(G,path[this.prog]);
+        if(!this.cutting && Math.hypot(this.kn.x-cur.x,this.kn.y-cur.y)<R*1.4) this.cutting=true;
         if(this.cutting){
           while(this.prog<path.length-1){
             const nx=this.w(G,path[this.prog+1]); if(Math.hypot(this.kn.x-nx.x,this.kn.y-nx.y)>=R) break;
@@ -1317,9 +1321,10 @@ const S6 = {
           }
           let md=1e9; for(const q of path){ const pw=this.w(G,q); md=Math.min(md,Math.hypot(this.kn.x-pw.x,this.kn.y-pw.y)); }
           this.dev+=md/G.k; this.devN++;
-          if(d>R*2.8){ this.reset(); showFlash('Lecsúszott a kés!'); shake=4; }
+          const now=this.w(G,path[this.prog]);
+          if(Math.hypot(this.kn.x-now.x,this.kn.y-now.y)>R*3.2){ this.cutting=false; showFlash('Lecsúszott! Folytasd a pontnál'); shake=3; }
         }
-      } else if(this.cutting) this.reset();
+      } else this.cutting=false;   // elengedve megáll, de a vágás megmarad: a narancssárga pontnál folytatható
       if(this.prog>=path.length-1){
         const avg=this.devN?this.dev/this.devN:6, a=clamp(1-(avg-.8)/4.5,.15,1), mid=this.w(G,path[path.length>>1]);
         this.acc.push(a); addScore(60+110*a,mid.x,mid.y-30); floatText(CUTS[this.i].name+(a>.8?' – szép vágás!':''),mid.x,mid.y-56,'#f3e2b8');
@@ -1356,8 +1361,17 @@ const S6 = {
       const pts=this.paths[this.i], a=this.w(G,pts[0]), b=this.w(G,pts[pts.length-1]);
       this.line(G,pts,pts.length-1); g.setLineDash([7,6]); g.strokeStyle='rgba(21,17,15,.7)'; g.lineWidth=5; g.stroke(); g.strokeStyle='#f3e2b8'; g.lineWidth=2.6; g.stroke(); g.setLineDash([]);
       if(this.prog>0){ this.line(G,pts,this.prog); g.strokeStyle='#5a0810'; g.lineWidth=5; g.stroke(); g.strokeStyle='#e0202c'; g.lineWidth=2.4; g.stroke(); }
-      const pr=9+Math.sin(tNow*7)*3;
-      if(!this.cutting){ g.beginPath(); g.arc(a.x,a.y,pr,0,TAU); g.fillStyle='rgba(242,162,58,.9)'; g.fill(); outline(2.4); }
+      const pr=11+Math.sin(tNow*7)*3.5, pi=Math.floor(this.prog), st=this.w(G,pts[pi]);
+      if(!this.cutting){
+        // futó jel mutatja, merre kell húzni
+        const tt=(tNow*.8)%1, hi=pi+Math.floor(tt*(pts.length-1-pi)), hp=this.w(G,pts[hi]);
+        g.beginPath(); g.arc(hp.x,hp.y,6,0,TAU); g.fillStyle=`rgba(255,255,255,${.9-tt*.6})`; g.fill(); outline(2);
+        g.beginPath(); g.arc(st.x,st.y,pr+7,0,TAU); g.strokeStyle='rgba(242,162,58,.5)'; g.lineWidth=3; g.stroke();
+        g.beginPath(); g.arc(st.x,st.y,pr,0,TAU); g.fillStyle='rgba(242,162,58,.95)'; g.fill(); outline(2.4);
+        g.font='700 16px "Barlow Condensed","Arial Narrow",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+        const lab=pi===0?'Itt kezdd, és húzd végig':'Innen folytasd', ly=st.y-pr-16;
+        g.lineWidth=4.5; g.strokeStyle='#15110f'; g.strokeText(lab,clamp(st.x,90,W-90),ly); g.fillStyle='#f3e2b8'; g.fillText(lab,clamp(st.x,90,W-90),ly);
+      }
       g.beginPath(); g.arc(b.x,b.y,6,0,TAU); g.fillStyle='#f3e2b8'; g.fill(); outline(2.4);
     }
     const kt=Math.min(1.35,k*.52), hx=W*.85, hy=H-4;
@@ -1508,7 +1522,7 @@ const CARD={
   singe:{eyebrow:'Harmadik felvonás', title:'Perzselés', btn:'Gyújtsd be!',
     text:'Vidd végig a lángot az egész disznón. Aranybarnára kell perzselni, a szénfekete folt nem számít bele.'},
   cut:{eyebrow:'Negyedik felvonás', title:'Bontás', btn:'Vágjunk!',
-    text:'Húzd végig a kést a szaggatott vonalon, a narancssárga ponttól a másik végéig. Minél pontosabban követed, annál többet ér. Ha lecsúszol vagy elengeded, a vágás újraindul.'},
+    text:'Tedd az ujjad (vagy az egeret lenyomva) a narancssárga pontra, és húzd végig a szaggatott vonalon a fehér pontig. Öt vágás van. Ha elengeded vagy lecsúszol, a pontnál folytathatod. Minél pontosabban követed a vonalat, annál többet ér.'},
   grind:{eyebrow:'Ötödik felvonás', title:'Darálás ütemre', btn:'Tekerjük!',
     text:'A daráló a zene ütemére megy. Koppints (vagy szóköz) pontosan akkor, amikor a piros gyűrű ráér a körre. A sorozat egyre többet ér.'},
   stuff:{eyebrow:'Hatodik felvonás', title:'Hurkatöltés', btn:'Töltsük!',
