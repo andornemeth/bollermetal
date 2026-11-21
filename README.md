@@ -22,7 +22,7 @@ Disznóvágós ügyességi játék falusi udvaron, metálzenével és pálinkáv
 
 ## Fotók
 
-A háttér, a hó, a malac, a hurka és az üveg szabad licencű fényképekből készült (kivágva, körülvágva, átméretezve):
+A háttér, a hó, a malac, a hurka, az üveg, a kés, a daráló és a deszka szabad licencű képekből készült (kivágva, körülvágva, átméretezve):
 
 | Fájl | Eredeti | Szerző | Licenc |
 | --- | --- | --- | --- |
@@ -31,9 +31,12 @@ A háttér, a hó, a malac, a hurka és az üveg szabad licencű fényképekből
 | `img/pig.webp` | [Middle White Sow - Best in Show](https://www.flickr.com/photos/14265068@N00/3716715546) | Dave Hamster | CC BY 2.0 |
 | `img/lie.webp` | [Pig at DuPage County Fair](https://www.flickr.com/photos/36521980095@N01/9382797565) | danxoneil | CC BY 2.0 |
 | `img/coil.webp`, `img/skin.jpg` | [Blood sausage](https://www.flickr.com/photos/27519540@N04/6534119025) | Marit & Toomas Hinnosaar | CC BY 2.0 |
+| `img/knife.webp` | [Butcher Knife](https://sketchfab.com/3d-models/a8677d9c7a5b43fe966ac48d2798dad2) | beyondmatter | CC BY 4.0 |
+| `img/grinder.webp` | [Meat grinder](https://www.flickr.com/photos/68147320@N02/8368922229) | T.Tseng | CC BY 2.0 |
+| `img/wood.jpg` | [Wood plank texture background, brown](https://www.rawpixel.com/image/6153644/wood-plank-texture-background-brown-design) | rawpixel (Teddy) | CC0 1.0 |
 | `img/bottle.webp` | [Schnaps bottle, glass, blown glass](https://www.rawpixel.com/image/7655114/photo-image-vintage-art-public-domain) | rawpixel | CC0 1.0 |
 
-CC BY 2.0: https://creativecommons.org/licenses/by/2.0/
+CC BY 2.0: https://creativecommons.org/licenses/by/2.0/ · CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
 
 ## Hangok
 

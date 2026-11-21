@@ -138,7 +138,7 @@ setOrder(2);
 
 /* ---------- fotók: szabad licencű képek, forrásuk a README-ben ---------- */
 const IMG = {}; let booted = false;
-for (const [k,src] of Object.entries({bg:'img/bg.jpg',snow:'img/snow.jpg',pig:'img/pig.webp',lie:'img/lie.webp',bottle:'img/bottle.webp',coil:'img/coil.webp',skin:'img/skin.jpg'})) {
+for (const [k,src] of Object.entries({bg:'img/bg.jpg',snow:'img/snow.jpg',pig:'img/pig.webp',lie:'img/lie.webp',bottle:'img/bottle.webp',coil:'img/coil.webp',skin:'img/skin.jpg',knife:'img/knife.webp',grinder:'img/grinder.webp',wood:'img/wood.jpg'})) {
   const im = new Image(); im.onload = () => { if (booted && (k==='bg'||k==='snow')) resize(); }; im.src = src; IMG[k] = im;
 }
 const ok = k => IMG[k].complete && IMG[k].naturalWidth > 0;
@@ -149,7 +149,8 @@ const LIE_MASK = ["00000000000000000000000000", "00001111111111111110011100", "0
 const $ = id => document.getElementById(id);
 const cv = $('cv'); let g = cv.getContext('2d');
 const bd = document.createElement('canvas');           // festett háttér
-const dc = document.createElement('canvas'); const dg = dc.getContext('2d');  // nyomok a hóban
+const dc = document.createElement('canvas'); const dg = dc.getContext('2d');
+const cl = document.createElement('canvas'); const cg = cl.getContext('2d');   // tömegréteg az ellenfényhez  // nyomok a hóban
 const vg = document.createElement('canvas');           // vignetta
 const TAU = Math.PI * 2, INK = '#1b1320';
 const clamp = (v,a,b) => v<a?a:v>b?b:v;
@@ -619,9 +620,11 @@ function drawHat(type,R,col){
 function drawPerson(x,y,p){
   const k=p.k||1, fl=p.flip?-1:1, mv=p.moving?1:0, t=p.walk||0, R=p.img?19:12.5;
   g.save(); g.translate(x,y);
+  // hosszú hajnali árnyék balra, a nap felől nézve
+  g.save(); g.scale(k,k); g.fillStyle='rgba(14,20,70,.17)'; g.beginPath(); g.ellipse(-36,8,44,6,-.17,0,TAU); g.fill(); g.beginPath(); g.ellipse(-78,16,R*.62,5,-.17,0,TAU); g.fill(); g.restore();
   if(p.fall) g.rotate(-1.4*p.fall*fl);
   g.scale(k*fl,k); g.lineJoin='round'; g.lineCap='round';
-  ell(0,1,19,5.5,'rgba(20,24,60,.22)');
+  ell(0,1,17,4.6,'rgba(14,18,54,.3)');
   const bob=mv*Math.abs(Math.sin(t))*2.4;
   const pants=p.pants||'#23262e';
   if(p.skirt){ boot(-6,0); boot(5,0); }
@@ -631,7 +634,7 @@ function drawPerson(x,y,p){
   }
   g.translate(0,-bob);
   // kabát
-  const coat=p.coat; let gr=g.createLinearGradient(-14,0,14,0); gr.addColorStop(0,shade(coat,.2)); gr.addColorStop(1,shade(coat,-.25));
+  const coat=p.coat; let gr=g.createLinearGradient(-14*fl,0,14*fl,0); gr.addColorStop(0,shade(coat,-.34)); gr.addColorStop(.6,coat); gr.addColorStop(1,shade(coat,.3));
   g.beginPath();
   if(p.skirt){ g.moveTo(-12,-60); g.quadraticCurveTo(0,-65,12,-60); g.lineTo(13,-36); g.lineTo(18,-6); g.quadraticCurveTo(0,-2,-18,-6); g.lineTo(-13,-36); }
   else { g.moveTo(-12.5,-60); g.quadraticCurveTo(0,-65,12.5,-60); g.lineTo(14,-34); g.lineTo(15,-22); g.quadraticCurveTo(0,-18,-15,-22); g.lineTo(-14,-34); }
@@ -669,6 +672,7 @@ function drawPerson(x,y,p){
   if(p.img && p.img.complete && p.img.naturalWidth){
     g.save(); g.beginPath(); g.ellipse(0,0,R*.9,R,0,0,TAU); g.clip(); g.drawImage(p.img,-R,-R,R*2,R*2);
     gr=g.createRadialGradient(-R*.25,-R*.2,R*.5,0,0,R*1.05); gr.addColorStop(0,'rgba(20,10,40,0)'); gr.addColorStop(1,'rgba(20,10,40,.38)'); g.fillStyle=gr; g.fillRect(-R,-R,R*2,R*2);
+    gr=g.createLinearGradient(-R*fl,0,R*fl,0); gr.addColorStop(0,'rgba(14,22,84,.34)'); gr.addColorStop(.5,'rgba(14,22,84,0)'); gr.addColorStop(1,'rgba(255,176,96,.24)'); g.fillStyle=gr; g.fillRect(-R,-R,R*2,R*2);
     if(p.drunk>0){ g.fillStyle=`rgba(225,40,40,${Math.min(.34,.1*p.drunk)})`; ell(-R*.42,R*.22,R*.3,R*.2); ell(R*.42,R*.22,R*.3,R*.2); ell(0,R*.12,R*.17,R*.15); }
     g.restore();
     g.beginPath(); g.ellipse(0,0,R*.9,R,0,0,TAU); outline(2.2);
@@ -693,7 +697,7 @@ function drawPerson(x,y,p){
 function photoPig(x,y,o){
   const im=IMG.pig, k=o.k||1, d=o.dir||1, ph=o.phase||0, run=o.still?0:1, ghost=o.ghost, w=98, h=w*im.naturalHeight/im.naturalWidth, sag=o.sag||0;
   g.save(); g.translate(x+(o.shake?rnd(-2,2):0),y); g.scale(k*d,k);
-  if(!ghost) ell(0,1.5,40,7,'rgba(10,14,40,.32)');
+  if(!ghost){ g.save(); g.scale(d,1); g.fillStyle='rgba(14,20,70,.18)'; g.beginPath(); g.ellipse(-34,8,58,8,-.13,0,TAU); g.fill(); g.restore(); ell(0,1.5,38,6,'rgba(10,14,40,.3)'); }
   g.translate(0,-run*Math.abs(Math.sin(ph))*4.5);
   g.rotate(run*Math.sin(ph*2)*.075+(o.shake?rnd(-.04,.04):0)+(o.bang||0)*.12);
   if(sag) g.scale(1+.05*sag,1-.2*sag);
@@ -753,6 +757,17 @@ function drawPig(x,y,o){
 }
 const pigEar = (pg,k,ep) => ok('pig') ? { x:pg.x+(pg.dir||1)*k*37, y:pg.y-k*13 } : { x:pg.x+(pg.dir||1)*k*22, y:pg.y+k*(-52-ep*8) };
 
+let woodPat=null;
+function wood(x,y,w,h,r,sc){   // deszka valódi fatextúrával
+  g.beginPath(); g.roundRect(x,y,w,h,r);
+  if(ok('wood')){
+    g.save(); g.clip(); if(!woodPat) woodPat=g.createPattern(IMG.wood,'repeat'); const q=sc||.22;
+    g.translate(x,y); g.scale(q,q); g.fillStyle=woodPat; g.fillRect(0,0,w/q+2,h/q+2); g.restore();
+    const gr=g.createLinearGradient(0,y,0,y+h); gr.addColorStop(0,'rgba(70,34,10,.22)'); gr.addColorStop(1,'rgba(40,18,6,.52)');
+    g.beginPath(); g.roundRect(x,y,w,h,r); g.fillStyle=gr; g.fill();
+  } else { const gr=g.createLinearGradient(0,y,0,y+h); gr.addColorStop(0,'#a87a48'); gr.addColorStop(1,'#7a5632'); g.fillStyle=gr; g.fill(); }
+  outline(1.8);
+}
 function sausage(x0,x1,r,kind){   // vízszintes hurka az y=0 tengelyen, valódi hurkabőr-textúrával
   const len=Math.max(2*r,x1-x0), c1=kind?'#b89068':'#4a1c20', c2=kind?'#dcc09a':'#7c3440';
   g.beginPath(); g.roundRect(x0,-r,len,2*r,r);
@@ -880,6 +895,7 @@ const S1 = {
     if(Math.abs(pg.vx)>14) pg.dir=pg.vx>0?1:-1;
     const v=Math.hypot(pg.vx,pg.vy); pg.phase+=v*dt*.13; pg.scared=scared; pg.lx=-nx*pg.dir; pg.ly=-ny;
     this.puffT-=dt; if(v>110 && this.puffT<=0){ this.puffT=.06; puff(pg.x-pg.dir*18,pg.y,2,'#ffffff',40,120,.4,3.4); }
+    this.brT=(this.brT||0)-dt; if(this.brT<=0){ this.brT=v>110?.22:.9; smoke.push({x:pg.x+pg.dir*48,y:pg.y-13,t:0,r:2.2,vx:pg.dir*16+rnd(-4,4),steam:true,life:.9}); }
     this.fp+=v*dt; if(this.fp>15){ this.fp=0; stampFoot(pg.x-pg.dir*12,pg.y+1,2.4); stampFoot(pg.x+pg.dir*12,pg.y+2,2.4); }
     if(scared && base<180 && Math.random()<dt*6) parts.push({x:pg.x+pg.dir*24,y:pg.y-46,vx:rnd(-30,30),vy:rnd(-60,-20),g:260,life:.5,t:0,r:2,col:'#9fd0ff'});
     pg.oinkT-=dt; if(pg.oinkT<=0){ pg.oinkT=rnd(1.2,3); if(scared && Math.random()<.4) squeal(.3); else oink(); }
@@ -998,6 +1014,7 @@ const S2 = {
       }
     } else if(this.phase==='bleed'){
       this.kn=Math.max(0,this.kn-dt); this.sag=Math.min(1,this.sag+dt*.8);
+      if(!reduced && Math.random()<dt*9) smoke.push({x:Math.random()<.5?this.bowl+rnd(-16,16):G.neck.x+rnd(-6,6),y:(Math.random()<.5?G.bowlY:G.neck.y)-4,t:0,r:2.6,vx:rnd(-5,7),steam:true,life:1.3});
       // a lavóros a vér alá szalad
       let tx=this.bowl;
       if(keys.ArrowLeft||keys.a) tx-=480*dt; else if(keys.ArrowRight||keys.d) tx+=480*dt; else if(ptr.has) tx=ptr.x+wobX(34);
@@ -1056,7 +1073,9 @@ const S2 = {
       this.knife(x0+this.m*G.barW,y-8,1.1);
     } else if(this.kn>0){ this.knife(lerp(G.neck.x,G.cx,this.kn*2),G.neck.y-30*this.kn*4,1.1); }
   },
-  knife(x,y,s){ g.save(); g.translate(x,y); g.scale(s,s); g.beginPath(); g.roundRect(-4,-30,8,16,2); g.fillStyle='#5a3a22'; g.fill(); outline(1.4);
+  knife(x,y,s){ g.save(); g.translate(x,y); g.scale(s,s);
+    if(ok('knife')){ const im=IMG.knife, kh=52, kw=kh*im.naturalWidth/im.naturalHeight; g.rotate(.12); g.drawImage(im,-kw*.62,-36,kw,kh); g.restore(); return; }
+    g.beginPath(); g.roundRect(-4,-30,8,16,2); g.fillStyle='#5a3a22'; g.fill(); outline(1.4);
     g.beginPath(); g.moveTo(-4,-14); g.lineTo(4,-14); g.lineTo(3,8); g.lineTo(0,16); g.lineTo(-4,6); g.closePath(); g.fillStyle='#cfd6e0'; g.fill(); outline(1.4); g.fillStyle='#fff'; g.fillRect(-3,-13,1.5,18); g.restore(); },
 };
 
@@ -1071,7 +1090,7 @@ const S3 = {
     this.photo=ok('lie');
     if(this.photo){ const im=IMG.lie, R=LIE_MASK.length, C=LIE_MASK[0].length; this.lw=94; this.lh=94*im.naturalHeight/im.naturalWidth; this.cs=this.lw/C; this.cells=[];
       for(let j=0;j<R;j++) for(let i=0;i<C;i++) if(LIE_MASK[j][i]==='1') this.cells.push({x:-40+(i+.5)*this.lw/C,y:-this.lh/2+(j+.5)*this.lh/R,v:0,ok:false}); }
-    const r=rng(5); this.straw=[]; for(let i=0;i<110;i++) this.straw.push([r()*2-1,r()*2-1,r()*TAU,8+r()*14]);
+    const r=rng(5); this.straw=[]; for(let i=0;i<260;i++) this.straw.push([r()*2-1,r()*2-1,r()*TAU,8+r()*14]);
   },
   geom(){ const cx=W/2-6, cy=horizon+(H-horizon)*.5, k=Math.min(3.3,(W-44)/108,(H-horizon)*.78/62); return {cx,cy,k}; },
   update(dt){
@@ -1123,9 +1142,9 @@ const S3 = {
   col(v){ return v<.55 ? mix([244,176,184],[218,152,106],v/.55) : v<=1.3 ? mix([210,146,82],[150,84,38],(v-.55)/.75) : mix([110,60,30],[24,18,15],(v-1.3)/.25); },
   draw(){
     const G=this.geom(), k=G.k;
-    ell(G.cx+4*k,G.cy+24*k,60*k,9*k,'rgba(20,24,60,.2)');
+    ell(G.cx+7*k,G.cy+4*k,66*k,38*k,'rgba(20,24,60,.14)');
     g.lineCap='round'; g.lineWidth=2;
-    for(const s of this.straw){ g.strokeStyle=s[3]>15?'rgba(214,180,84,.9)':'rgba(176,140,58,.85)'; const x=G.cx+s[0]*54*k, y=G.cy+19*k+s[1]*9*k; seg(x,y,x+Math.cos(s[2])*s[3],y+Math.sin(s[2])*s[3]*.3); }
+    for(const s of this.straw){ g.strokeStyle=s[3]>15?'rgba(214,180,84,.9)':'rgba(176,140,58,.85)'; const x=G.cx+7*k+s[0]*60*k, y=G.cy+3*k+s[1]*33*k; seg(x,y,x+Math.cos(s[2])*s[3],y+Math.sin(s[2])*s[3]*.3); }
     const ks=Math.min(1.45,k*.58);
     drawPerson(Math.max(28,G.cx-60*k),G.cy+10*k,hero(1,{k:ks,aL:.2,aR:.2}));
     drawPerson(Math.min(W-28,G.cx+68*k),G.cy+6*k,hero(2,{k:ks,aL:.2,aR:1.9,glass:true,flip:true}));
@@ -1220,7 +1239,7 @@ const S4 = {
     // asztal
     ell(W/2,ty+96,W*.46,8,'rgba(20,24,60,.2)');
     g.fillStyle='#5a3e24'; g.fillRect(26,ty+20,13,74); g.fillRect(W-39,ty+20,13,74);
-    let gr=g.createLinearGradient(0,ty,0,ty+14); gr.addColorStop(0,'#a87a48'); gr.addColorStop(1,'#7a5632'); g.beginPath(); g.roundRect(8,ty,W-16,14,3); g.fillStyle=gr; g.fill(); outline(1.8);
+    let gr; wood(8,ty,W-16,14,3);
     g.fillStyle='#63452a'; g.fillRect(12,ty+14,W-24,9);
     g.strokeStyle='rgba(60,38,20,.35)'; g.lineWidth=1; for(let x=30;x<W-20;x+=46) seg(x,ty+3,x+26,ty+3.6);
     // jelölés: eddig töltsd
@@ -1320,8 +1339,8 @@ const S6 = {
   draw(){
     const G=this.geom(), k=G.k, ks=Math.min(1.45,k*.58);
     // bontódeszka
-    g.beginPath(); g.roundRect(G.cx-50*k,G.cy+2*k,112*k,32*k,5*k); let gr=g.createLinearGradient(0,G.cy,0,G.cy+34*k); gr.addColorStop(0,'#a87a48'); gr.addColorStop(1,'#6b4a2a'); g.fillStyle=gr; g.fill(); outline(2);
-    g.strokeStyle='rgba(60,38,20,.3)'; g.lineWidth=1; for(let i=0;i<5;i++) seg(G.cx-46*k,G.cy+(7+i*5.5)*k,G.cx+58*k,G.cy+(7.6+i*5.5)*k);
+    ell(G.cx+7*k,G.cy+38*k,64*k,7*k,'rgba(10,14,40,.3)');
+    wood(G.cx-50*k,G.cy-35*k,114*k,71*k,4*k,.1*k);
     drawPerson(Math.max(28,G.cx-62*k),G.cy+12*k,hero(1,{k:ks,aL:.2,aR:.2}));
     drawPerson(Math.min(W-28,G.cx+70*k),G.cy+8*k,hero(2,{k:ks,aL:.2,aR:1.9,glass:true,flip:true}));
     if(ok('lie')){ const im=IMG.lie, lw=94, lh=94*im.naturalHeight/im.naturalWidth; g.drawImage(this.tinted(),G.cx-40*k,G.cy-lh/2*k,lw*k,lh*k); }
@@ -1381,14 +1400,14 @@ const S7 = {
   hud(){ return this.beat<this.first ? 'Koppints a zene ütemére!' : `${this.hits}/${this.N} · sorozat: ${this.combo}`; },
   draw(){
     const G=this.geom(), ty=G.ty, gx=G.gx, b=Math.pow(1-beatPhase(),3), kh=Math.min(1.45,(H-horizon)/250), fill=this.hits/this.N;
-    const hd={x:gx+50+Math.cos(this.crank)*6,y:ty-33+Math.sin(this.crank)*15};
-    drawPerson(gx-34,ty+40*kh,hero(1,{k:kh,reach:{x:gx-6,y:ty-84},bang:b}));
+    const ph=ok('grinder'), hd=ph?{x:gx+54+Math.cos(this.crank)*6,y:ty-50+Math.sin(this.crank)*15}:{x:gx+50+Math.cos(this.crank)*6,y:ty-33+Math.sin(this.crank)*15};
+    drawPerson(gx-34,ty+40*kh,hero(1,{k:kh,reach:{x:gx+2,y:ty-88},bang:b}));
     drawPerson(gx+62,ty+40*kh,hero(0,{k:kh,flip:true,reach:hd,bang:b*.5}));
     drawPerson(clamp(gx-150,30,W-30),ty+40*kh,hero(2,{k:kh,aL:.2,aR:2.2,glass:true,bang:b}));
     // asztal
     ell(W/2,ty+96,W*.46,8,'rgba(20,24,60,.2)');
     g.fillStyle='#5a3e24'; g.fillRect(26,ty+20,13,74); g.fillRect(W-39,ty+20,13,74);
-    let gr=g.createLinearGradient(0,ty,0,ty+14); gr.addColorStop(0,'#a87a48'); gr.addColorStop(1,'#7a5632'); g.beginPath(); g.roundRect(8,ty,W-16,14,3); g.fillStyle=gr; g.fill(); outline(1.8);
+    let gr; wood(8,ty,W-16,14,3);
     g.fillStyle='#63452a'; g.fillRect(12,ty+14,W-24,9);
     // húsdarabok az asztalon
     for(let i=0;i<5;i++){ g.beginPath(); g.roundRect(gx+92+i*19,ty-9-(i%2)*4,16,10+(i%2)*4,4); g.fillStyle=i%2?'#c9505c':'#e08a92'; g.fill(); outline(1.4); }
@@ -1398,6 +1417,15 @@ const S7 = {
     if(fill>0){ g.beginPath(); g.ellipse(bx,ty-16,30*Math.min(1,.4+fill),4+16*fill,0,Math.PI,TAU); g.fillStyle='#c0565e'; g.fill(); outline(1.4); g.fillStyle='#e8a0a6'; for(let i=0;i<Math.round(fill*14);i++) ell(bx-18+(i*37%36),ty-18-(i*13%10)*fill,1.4,1.4); }
     g.beginPath(); g.ellipse(bx,ty-16,34,5,0,0,TAU); outline(2.6,'#2b4a8a');
     // húsdaráló
+    if(ph){
+      const im=IMG.grinder, gh=96, gw=gh*im.naturalWidth/im.naturalHeight;
+      g.lineCap='round'; g.strokeStyle=INK; g.lineWidth=5.4; seg(gx+34,ty-50,gx+54,ty-50); seg(gx+54,ty-50,hd.x,hd.y); g.strokeStyle='#8b9199'; g.lineWidth=3; seg(gx+34,ty-50,gx+54,ty-50); seg(gx+54,ty-50,hd.x,hd.y);
+      g.drawImage(im,gx-gw*.54,ty-gh+3,gw,gh);
+      g.beginPath(); g.roundRect(gx+1,ty-gh-4,17,10,4); g.fillStyle='#c9505c'; g.fill(); outline(1.4);
+      g.strokeStyle='#c0565e'; g.lineWidth=2.4;
+      for(let i=0;i<4;i++){ const y0=ty-60+i*6, wv=Math.sin(tNow*9+i)*2; g.beginPath(); g.moveTo(gx-36,y0); g.quadraticCurveTo(gx-56+wv,y0+4,bx+8+i*4,ty-18); g.stroke(); }
+      g.beginPath(); g.arc(hd.x,hd.y,4.6,0,TAU); g.fillStyle='#5a3a22'; g.fill(); outline(1.4);
+    } else {
     g.fillStyle='#5f656d'; g.fillRect(gx-7,ty-22,14,22); g.fillRect(gx-16,ty-4,32,4);
     gr=g.createLinearGradient(0,ty-48,0,ty-20); gr.addColorStop(0,'#d3d8de'); gr.addColorStop(.5,'#8b9199'); gr.addColorStop(1,'#5f656d');
     g.beginPath(); g.roundRect(gx-34,ty-48,70,28,11); g.fillStyle=gr; g.fill(); outline(1.8);
@@ -1408,6 +1436,7 @@ const S7 = {
     for(let i=0;i<4;i++){ const y0=ty-42+i*5.5, w=Math.sin(tNow*9+i)*2; g.beginPath(); g.moveTo(gx-40,y0); g.quadraticCurveTo(gx-58+w,y0+2,bx+8+i*4,ty-18); g.stroke(); }
     g.strokeStyle=INK; g.lineWidth=5.4; seg(gx+36,ty-33,gx+50,ty-33); seg(gx+50,ty-33,hd.x,hd.y); g.strokeStyle='#8b9199'; g.lineWidth=3; seg(gx+36,ty-33,gx+50,ty-33); seg(gx+50,ty-33,hd.x,hd.y);
     g.beginPath(); g.arc(hd.x,hd.y,4.6,0,TAU); g.fillStyle='#5a3a22'; g.fill(); outline(1.4);
+    }
     // ütemgyűrű
     if(mode==='play' && !this.over){
       const p=beatPhase(), R=G.R, ry=G.ry, last=this.first+this.N, nextB=this.beat+1, live=nextB>=this.first && nextB<last;
@@ -1465,7 +1494,7 @@ const ORDER=['catch','stab','singe','cut','grind','stuff','tor'];
 const STG={catch:S1,stab:S2,singe:S3,cut:S6,grind:S7,stuff:S4,tor:S5};
 const CARD={
   title:{eyebrow:'Disznóvágás falun, metálra', title:'Böllérmetál',
-    text:'Hajnali hat, mínusz öt fok. Három disznóölő, egy malac, és az egész falu a kerítésnél. Ki fogja a kést? A másik kettő kerít és tart.', hint:'Hanggal az igazi: a választás indítja a zenét. Fotók: mripp, Dave Hamster, danxoneil, Marit & Toomas Hinnosaar (CC BY 2.0), Bonnie Moreland (közkincs), rawpixel (CC0).'},
+    text:'Hajnali hat, mínusz öt fok. Három disznóölő, egy malac, és az egész falu a kerítésnél. Ki fogja a kést? A másik kettő kerít és tart.', hint:'Hanggal az igazi: a választás indítja a zenét. Fotók: mripp, Dave Hamster, danxoneil, Marit & Toomas Hinnosaar, T.Tseng (CC BY 2.0), beyondmatter (CC BY 4.0), Bonnie Moreland (közkincs), rawpixel (CC0).'},
   catch:{eyebrow:'Első felvonás', title:'Fogd meg a fülit!', btn:'Utána!',
     text:'Húzd az ujjad vagy az egeret a hóban, a böllér arra fut (billentyűzeten a nyilak). Ha megvan a füle, koppints gyorsan, hogy ki ne csússzon, amíg a társaid odaérnek.',
     hint:'Pálinka: a gomb vagy a P billentyű. Minden kupica növeli a szorzót, de egyre jobban dülöngélsz. A hóba dobott üveg gyorsít is.'},
@@ -1557,7 +1586,7 @@ function resize(){
   const r=cv.getBoundingClientRect(), vw=Math.max(200,r.width), vh=Math.max(200,r.height);
   DPR=Math.min(2,window.devicePixelRatio||1);
   S=clamp(Math.sqrt(vw*vh/(820*600)),.5,1.7); W=vw/S; H=vh/S;
-  cv.width=Math.round(vw*DPR); cv.height=Math.round(vh*DPR); dc.width=cv.width; dc.height=cv.height;
+  cv.width=Math.round(vw*DPR); cv.height=Math.round(vh*DPR); dc.width=cv.width; dc.height=cv.height; cl.width=cv.width; cl.height=cv.height;
   horizon=clamp(H*(photoBg()?.4:.36),150,300);
   buildBackdrop(); clearDecals(); makeCrowd();
   if(cur && cur.layout) cur.layout();
@@ -1616,7 +1645,7 @@ function draw(){
   if(heavy && !reduced){
     g.save(); g.globalCompositeOperation='lighter';
     const beams=[[lights[0][0],lights[0][1],W*.5+Math.sin(tNow*.8)*W*.3,'255,60,50'],[lights[1][0],lights[1][1],W*.5+Math.sin(tNow*.63+2)*W*.34,'255,180,60']];
-    for(const bm of beams){ const gr=g.createLinearGradient(bm[0],bm[1],bm[2],H); gr.addColorStop(0,`rgba(${bm[3]},${.16+.1*b})`); gr.addColorStop(1,`rgba(${bm[3]},0)`);
+    for(const bm of beams){ const gr=g.createLinearGradient(bm[0],bm[1],bm[2],H); gr.addColorStop(0,`rgba(${bm[3]},${.07+.06*b})`); gr.addColorStop(1,`rgba(${bm[3]},0)`);
       g.fillStyle=gr; g.beginPath(); g.moveTo(bm[0],bm[1]); g.lineTo(bm[2]-W*.11,H); g.lineTo(bm[2]+W*.11,H); g.closePath(); g.fill(); }
     g.restore();
   }
@@ -1628,12 +1657,20 @@ function draw(){
   tri(pot.x-11,pot.y,pot.x-2,pot.y-13-fl,pot.x+4,pot.y,'#f2a23a'); tri(pot.x-3,pot.y,pot.x+5,pot.y-10-fl*.7,pot.x+11,pot.y,'#ff7a2a'); tri(pot.x-5,pot.y,pot.x,pot.y-7-fl*.6,pot.x+5,pot.y,'#ffe08a');
   g.beginPath(); g.roundRect(pot.x-16,pot.y-26,32,18,[3,3,9,9]); g.fillStyle='#1d181c'; g.fill(); outline(1.6); rr(pot.x-18,pot.y-28,36,4,2,'#2b252b');
   g.strokeStyle='#2b252b'; g.lineWidth=2.4; seg(pot.x-12,pot.y-9,pot.x-15,pot.y+1); seg(pot.x+12,pot.y-9,pot.x+15,pot.y+1);
+  // a falu népe és a zenekar: fotós háttérnél ellenfényben, meleg peremfénnyel
+  const mainG=g, backlit=photoBg();
+  if(backlit){ const tf=g.getTransform(); cg.setTransform(1,0,0,1,0,0); cg.clearRect(0,0,cl.width,cl.height); cg.setTransform(tf); g=cg; }
   drawBand(b);
-  // a falu népe
   for(const c of crowd){
     const ch=c.cheer>0;
     drawPerson(c.x,c.y-(ch?Math.abs(Math.sin(tNow*14+c.ph*9))*5:0),{...c,bang:b*(.5+c.ph*.6),aL:ch?2.7:.22,aR:ch?2.7:(c.glass?1.9:.22),open:ch,horns:ch});
   }
+  if(backlit){
+    g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='source-atop'; g.fillStyle='rgba(12,12,42,.7)'; g.fillRect(0,0,cl.width,cl.height); g.globalCompositeOperation='source-over';
+    g=mainG; g.save(); g.setTransform(1,0,0,1,0,0); g.shadowColor='rgba(255,170,90,.9)'; g.shadowBlur=0; g.shadowOffsetX=1.7*S*DPR; g.shadowOffsetY=-.5*S*DPR; g.drawImage(cl,0,0); g.restore();
+  }
+  // parázs száll az üstből
+  if(!reduced && Math.random()<.06) parts.push({x:pot.x+rnd(-6,6),y:pot.y-8,vx:rnd(-12,12),vy:rnd(-70,-30),g:-12,life:1.3,t:0,r:1.3,col:'#ffb02e',glow:true});
   cur.draw();
   for(const p of parts){ if(p.glow) g.globalCompositeOperation='lighter'; g.globalAlpha=1-p.t/p.life; ell(p.x,p.y,p.r,p.r,p.col); if(p.glow) g.globalCompositeOperation='source-over'; }
   g.globalAlpha=1; g.fillStyle='#fff';
