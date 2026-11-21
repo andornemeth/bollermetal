@@ -221,6 +221,7 @@ function ik(sx,sy,tx,ty,a,b,bend){ let dx=tx-sx, dy=ty-sy; const d=Math.hypot(dx
 /* ================================================================== */
 /* AUDIO: a metál a böngészőben készül, mintavétel nélkül              */
 /* ================================================================== */
+const SILENT_WAV = 'data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
 const AU = { ctx:null, on:true, step:0, next:0, section:'intro', beat0:0, beatDur:.4 };
 const mf = m => 440*Math.pow(2,(m-69)/12);
 const parseBar = s => { const t=s.split(' '); return t.map((x,i)=>{ if(x==='.') return null; let len=1; while(t[i+len]==='.') len++; return { k:x[0], n:+x.slice(1), len }; }); };
@@ -260,10 +261,14 @@ const SONG = {
 };
 
 function initAudio(){
-  if (AU.ctx) { if (AU.ctx.state==='suspended') AU.ctx.resume(); return; }
+  if (AU.ctx) { if (AU.ctx.state!=='running') { try { const r=AU.ctx.resume(); if(r && r.catch) r.catch(()=>{}); } catch(e) {} } if (AU.unmute && AU.unmute.paused) AU.unmute.play().catch(()=>{}); return; }
   const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
   let c; try { c = new C(); } catch(e) { return; }
   AU.ctx = c;
+  // iPhone: néma kapcsoló mellett a böngészőben készülő hang alapból nem szól. A lejátszási munkamenet
+  // "playback" típusra állítása (vagy régebbi iOS-en egy néma hangfájl folyamatos lejátszása) ezt feloldja.
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e) {}
+  try { const a = new Audio(SILENT_WAV); a.loop = true; a.setAttribute('playsinline',''); a.play().catch(()=>{}); AU.unmute = a; } catch(e) {}
   const comp = c.createDynamicsCompressor(); comp.threshold.value=-16; comp.ratio.value=6; comp.connect(c.destination);
   AU.master = c.createGain(); AU.master.gain.value = AU.on ? .85 : 0; AU.master.connect(comp);
   AU.music = c.createGain(); AU.music.gain.value=.75; AU.music.connect(AU.master);
@@ -1593,6 +1598,7 @@ function resize(){
   if(!snow.length){ const n=reduced?24:110; for(let i=0;i<n;i++) snow.push({x:rnd(),y:rnd(),z:rnd(.4,1),ph:rnd(TAU)}); }
 }
 addEventListener('resize',resize);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && AU.ctx && AU.ctx.state!=='running'){ try { const r=AU.ctx.resume(); if(r && r.catch) r.catch(()=>{}); } catch(e) {} } });
 
 /* ---------- loop ---------- */
 const hudCache=['','','',''];
