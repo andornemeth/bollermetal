@@ -134,6 +134,15 @@ let team = [], pickId = 2;
 function setOrder(i){ pickId=i; team=[i,...[0,1,2].filter(j=>j!==i)].map((j,n)=>({...HEROES[j], apron:n===0?'#ece6d6':null})); }
 setOrder(2);
 
+/* ---------- fotók: szabad licencű képek, forrásuk a README-ben ---------- */
+const IMG = {}; let booted = false;
+for (const [k,src] of Object.entries({bg:'img/bg.jpg',snow:'img/snow.jpg',pig:'img/pig.webp',lie:'img/lie.webp',bottle:'img/bottle.webp',coil:'img/coil.webp',skin:'img/skin.jpg'})) {
+  const im = new Image(); im.onload = () => { if (booted && (k==='bg'||k==='snow')) resize(); }; im.src = src; IMG[k] = im;
+}
+const ok = k => IMG[k].complete && IMG[k].naturalWidth > 0;
+const photoBg = () => ok('bg') && ok('snow');
+const LIE_MASK = ["00000000000000000000000000", "00001111111111111110011100", "00011111111111111111111000", "00111111111111111111111000", "00111111111111111111111000", "00011111111111111111111100", "00111111111111111111111111", "00111011111111111111111110", "00110000111111111110011000", "01100000000000111000000000", "10100000000000111000000000", "00100000000000011000000000", "00000000000000011000000000", "00000000000000011000000000", "00000000000000001000000000", "00000000000000000100000000"];
+
 /* ---------- basics ---------- */
 const $ = id => document.getElementById(id);
 const cv = $('cv'); let g = cv.getContext('2d');
@@ -157,7 +166,7 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 let W=820, H=600, S=1, DPR=1, horizon=210, camZoom=1;
-let chim={x:0,y:0}, pot={x:0,y:0}, band={x:0,y:0,w:0,roofY:0};
+let chim={x:0,y:0}, pot={x:0,y:0}, band={x:0,y:0,w:0,roofY:0}, lights=[[0,0],[0,0]];
 let crowd=[], parts=[], bubbles=[], snow=[], smoke=[], floats=[], lens=[];
 let flash=null, shake=0, punch=0, hitstop=0, tNow=0, gore=0;
 let stage='catch', mode='card', cardKey='title', cur=null, outroT=0, lastResult='', torT=0;
@@ -178,8 +187,9 @@ function ell(x,y,rx,ry,fill){ g.beginPath(); g.ellipse(x,y,Math.max(0,rx),Math.m
 function rr(x,y,w,h,r,fill){ g.beginPath(); g.roundRect(x,y,w,h,r); if(fill) g.fillStyle=fill; g.fill(); }
 function seg(x1,y1,x2,y2){ g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); }
 function tri(x1,y1,x2,y2,x3,y3,fill){ g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.lineTo(x3,y3); g.closePath(); if(fill) g.fillStyle=fill; g.fill(); }
-function outline(w,col){ g.strokeStyle=col||INK; g.lineWidth=w||2; g.lineJoin='round'; g.stroke(); }
-function limb(pts,w,col,ink){ g.lineCap='round'; g.lineJoin='round'; g.beginPath(); g.moveTo(pts[0],pts[1]); for(let i=2;i<pts.length;i+=2) g.lineTo(pts[i],pts[i+1]); g.strokeStyle=ink||INK; g.lineWidth=w+2.6; g.stroke(); g.strokeStyle=col; g.lineWidth=w; g.stroke(); }
+const INKS='rgba(27,19,32,.62)';
+function outline(w,col){ g.strokeStyle=col||INKS; g.lineWidth=(w||2)*.6; g.lineJoin='round'; g.stroke(); }
+function limb(pts,w,col,ink){ g.lineCap='round'; g.lineJoin='round'; g.beginPath(); g.moveTo(pts[0],pts[1]); for(let i=2;i<pts.length;i+=2) g.lineTo(pts[i],pts[i+1]); g.strokeStyle=ink||INKS; g.lineWidth=w+1.5; g.stroke(); g.strokeStyle=col; g.lineWidth=w; g.stroke(); }
 function ik(sx,sy,tx,ty,a,b,bend){ let dx=tx-sx, dy=ty-sy; const d=Math.hypot(dx,dy)||.001, m=Math.min(d,a+b-.5); dx=dx/d*m; dy=dy/d*m; const A=Math.acos(clamp((a*a+m*m-b*b)/(2*a*m),-1,1)), an=Math.atan2(dy,dx)+A*bend; return [sx+Math.cos(an)*a, sy+Math.sin(an)*a, sx+dx, sy+dy]; }
 
 /* ================================================================== */
@@ -364,7 +374,24 @@ function tree(x,y,len,ang,w,r){
   if(len<5) return; const x2=x+Math.cos(ang)*len, y2=y+Math.sin(ang)*len; g.lineWidth=w; seg(x,y,x2,y2);
   const n=2+(r()<.3?1:0); for(let i=0;i<n;i++) tree(x2,y2,len*(.58+r()*.16),ang+(r()-.5)*1.3,Math.max(.6,w*.65),r);
 }
+function photoBackdrop(){
+  bd.width=cv.width; bd.height=cv.height;
+  const b=bd.getContext('2d'), im=IMG.bg, sn=IMG.snow, GL=.885, hz=horizon; b.setTransform(S*DPR,0,0,S*DPR,0,0);
+  // hó: napkeltés hómező, a horizont felé kékül
+  b.drawImage(sn,0,hz-12,W,H-hz+12);
+  let gr=b.createLinearGradient(0,hz,0,H); gr.addColorStop(0,'rgba(34,52,112,.3)'); gr.addColorStop(.3,'rgba(52,72,136,.06)'); gr.addColorStop(1,'rgba(255,255,255,.16)');
+  b.fillStyle=gr; b.fillRect(0,hz-12,W,H-hz+12);
+  // falu: a kép talajvonala a horizontra kerül, az alja belemosódik a hóba
+  const sc=Math.max(W/im.naturalWidth,(hz+8)/(GL*im.naturalHeight)), pw=im.naturalWidth*sc, ph=im.naturalHeight*sc, px=(W-pw)*.38, py=hz+8-GL*ph, strip=(1-GL)*ph;
+  const t=document.createElement('canvas'); t.width=bd.width; t.height=bd.height; const tc=t.getContext('2d'); tc.setTransform(S*DPR,0,0,S*DPR,0,0);
+  tc.drawImage(im,px,py,pw,ph);
+  tc.globalCompositeOperation='destination-in'; const m=tc.createLinearGradient(0,hz+8+strip*.2,0,hz+8+strip*.95); m.addColorStop(0,'#000'); m.addColorStop(1,'rgba(0,0,0,0)'); tc.fillStyle=m; tc.fillRect(0,0,W,H);
+  b.setTransform(1,0,0,1,0,0); b.drawImage(t,0,0);
+  chim={x:-999,y:-999}; pot={x:W*.56,y:hz+48}; band={x:W*.8,y:hz+34,w:Math.min(W*.19,170),roofY:-30};
+  lights=[[W*.1,-30],[W*.9,-30]];
+}
 function buildBackdrop(){
+  if(photoBg()){ photoBackdrop(); buildVignette(); return; }
   bd.width=cv.width; bd.height=cv.height;
   const main=g; g=bd.getContext('2d'); g.setTransform(S*DPR,0,0,S*DPR,0,0);
   const r=rng(11), hz=horizon; let gr;
@@ -495,11 +522,17 @@ function buildBackdrop(){
   gr=g.createLinearGradient(0,oy-22,0,oy-4); gr.addColorStop(0,'#f6f9ff'); gr.addColorStop(1,'#bccbe8');
   g.fillStyle=gr; g.beginPath(); g.moveTo(olX+1,oy-13); g.lineTo(olX+4,oy-21); g.lineTo(olX+ow+9,oy-12); g.lineTo(olX+ow+9,oy-5); g.quadraticCurveTo(olX+ow*.5,oy-4,olX+1,oy-13); g.fill();
   band={x:olX,y:hz+30,w:ow,roofY:oy-18};
+  lights=[[chim.x-40,chim.y+10],[band.x+band.w*.4,band.roofY]];
   g=main;
-  // vignetta
+  buildVignette();
+}
+const grainC=document.createElement('canvas'); grainC.width=grainC.height=128;
+{ const c=grainC.getContext('2d'), d=c.createImageData(128,128); for(let i=0;i<d.data.length;i+=4){ const v=Math.random()<.5?0:255; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=Math.random()*26; } c.putImageData(d,0,0); }
+let grainPat=null, skinPat=null;
+function buildVignette(){
   vg.width=cv.width; vg.height=cv.height; const v=vg.getContext('2d');
-  gr=v.createRadialGradient(vg.width/2,vg.height*.52,Math.min(vg.width,vg.height)*.35,vg.width/2,vg.height*.52,Math.hypot(vg.width,vg.height)*.62);
-  gr.addColorStop(0,'rgba(8,6,24,0)'); gr.addColorStop(1,'rgba(8,6,24,.6)'); v.fillStyle=gr; v.fillRect(0,0,vg.width,vg.height);
+  const gr=v.createRadialGradient(vg.width/2,vg.height*.52,Math.min(vg.width,vg.height)*.35,vg.width/2,vg.height*.52,Math.hypot(vg.width,vg.height)*.62);
+  gr.addColorStop(0,'rgba(8,6,24,0)'); gr.addColorStop(1,'rgba(8,6,24,.48)'); v.fillStyle=gr; v.fillRect(0,0,vg.width,vg.height);
 }
 /* nyomok a hóban */
 function clearDecals(){ dg.setTransform(1,0,0,1,0,0); dg.clearRect(0,0,dc.width,dc.height); dg.setTransform(S*DPR,0,0,S*DPR,0,0); }
@@ -619,7 +652,21 @@ function drawPerson(x,y,p){
   drawHat(p.hat,R,p.hatCol||'#b3121d');
   g.restore();
 }
+function photoPig(x,y,o){
+  const im=IMG.pig, k=o.k||1, d=o.dir||1, ph=o.phase||0, run=o.still?0:1, ghost=o.ghost, w=98, h=w*im.naturalHeight/im.naturalWidth, sag=o.sag||0;
+  g.save(); g.translate(x+(o.shake?rnd(-2,2):0),y); g.scale(k*d,k);
+  if(!ghost) ell(0,1.5,40,7,'rgba(10,14,40,.32)');
+  g.translate(0,-run*Math.abs(Math.sin(ph))*4.5);
+  g.rotate(run*Math.sin(ph*2)*.075+(o.shake?rnd(-.04,.04):0)+(o.bang||0)*.12);
+  if(sag) g.scale(1+.05*sag,1-.2*sag);
+  if(ghost){ g.globalAlpha=.8; const fp=Math.sin(tNow*9)*.3; for(const s of [-1,1]){ g.save(); g.translate(s*6-4,-h*.9); g.rotate(s*(.5-fp)-.1); g.beginPath(); g.ellipse(s*7,-10,8,18,0,0,TAU); g.fillStyle='#ffffff'; g.fill(); g.restore(); } }
+  g.drawImage(im,-w*.5,-h+2.5,w,h);
+  if(o.wound){ ell(27,-20,3.4,4.4,'#5a0810'); ell(27,-20,1.9,2.7,'#b3121d'); g.fillStyle='#8a0c16'; g.fillRect(26,-20,2.2,13); }
+  if(ghost){ g.globalAlpha=1; g.strokeStyle='#ffd866'; g.lineWidth=2.6; g.beginPath(); g.ellipse(36,-h*.62,12,3.6,0,0,TAU); g.stroke(); }
+  g.restore();
+}
 function drawPig(x,y,o){
+  if(ok('pig')) return photoPig(x,y,o);
   const k=o.k||1, d=o.dir||1, ph=o.phase||0, run=o.still?0:1, ghost=o.ghost;
   g.save(); g.translate(x+(o.shake?rnd(-2,2):0),y); g.scale(k*d,k); g.lineJoin='round'; g.lineCap='round';
   if(ghost) g.globalAlpha=.86; else ell(0,1.5,36,6.5,'rgba(20,24,60,.22)');
@@ -666,18 +713,30 @@ function drawPig(x,y,o){
   if(ghost){ g.strokeStyle='#ffd866'; g.lineWidth=2.6; g.beginPath(); g.ellipse(28,hy-25,12,3.6,0,0,TAU); g.stroke(); }
   g.restore();
 }
-const pigEar = (pg,k,ep) => ({ x:pg.x+(pg.dir||1)*k*22, y:pg.y+k*(-52-ep*8) });
+const pigEar = (pg,k,ep) => ok('pig') ? { x:pg.x+(pg.dir||1)*k*37, y:pg.y-k*13 } : { x:pg.x+(pg.dir||1)*k*22, y:pg.y+k*(-52-ep*8) };
 
-function hurka(x,y,len,r,kind,ang){
-  g.save(); g.translate(x,y); g.rotate(ang||0);
-  const c1=kind?'#b89068':'#4a1c20', c2=kind?'#dcc09a':'#7c3440';
-  g.lineCap='round'; g.strokeStyle=INK; g.lineWidth=r*2+2; seg(-len/2+r,0,len/2-r,0);
-  g.strokeStyle=c1; g.lineWidth=r*2; seg(-len/2+r,0,len/2-r,0);
-  g.strokeStyle=c2; g.lineWidth=r*.5; seg(-len/2+r+2,-r*.42,len/2-r-2,-r*.42);
-  g.fillStyle='#e9e2d0'; g.fillRect(-len/2-3,-1.5,5,3); g.fillRect(len/2-2,-1.5,5,3);
-  g.restore();
+function sausage(x0,x1,r,kind){   // vízszintes hurka az y=0 tengelyen, valódi hurkabőr-textúrával
+  const len=Math.max(2*r,x1-x0), c1=kind?'#b89068':'#4a1c20', c2=kind?'#dcc09a':'#7c3440';
+  g.beginPath(); g.roundRect(x0,-r,len,2*r,r);
+  if(ok('skin')){
+    g.save(); g.clip();
+    if(!skinPat) skinPat=g.createPattern(IMG.skin,'repeat');
+    const sh=IMG.skin.naturalHeight, sc=2.3*r/sh;
+    g.save(); g.translate(x0,-r*1.15); g.scale(sc,sc); g.fillStyle=skinPat; g.fillRect(0,0,len/sc+2,sh); g.restore();
+    if(!kind){ g.fillStyle='rgba(58,12,20,.66)'; g.fillRect(x0,-r,len,2*r); }
+    const gr=g.createLinearGradient(0,-r,0,r); gr.addColorStop(0,'rgba(255,255,255,.04)'); gr.addColorStop(.24,'rgba(255,255,255,.42)'); gr.addColorStop(.48,'rgba(255,255,255,0)'); gr.addColorStop(1,'rgba(10,0,10,.62)');
+    g.fillStyle=gr; g.fillRect(x0,-r,len,2*r);
+    g.restore();
+    g.beginPath(); g.roundRect(x0,-r,len,2*r,r); outline(1.6,'rgba(30,14,18,.65)');
+  } else {
+    g.fillStyle=c1; g.fill(); outline(1.8);
+    g.lineCap='round'; g.strokeStyle=c2; g.lineWidth=r*.5; seg(x0+r+2,-r*.42,x0+len-r-2,-r*.42);
+  }
+  g.fillStyle='#d9cfba'; g.fillRect(x0-3,-1.6,4.5,3.2); g.fillRect(x0+len-1.5,-1.6,4.5,3.2);
 }
+function hurka(x,y,len,r,kind,ang){ g.save(); g.translate(x,y); g.rotate(ang||0); sausage(-len/2,len/2,r,kind); g.restore(); }
 function bottle(x,y,ang,k){
+  if(ok('bottle')){ const im=IMG.bottle, h=32, w=h*im.naturalWidth/im.naturalHeight; g.save(); g.translate(x,y); g.rotate(ang); g.scale(k,k); g.drawImage(im,-w/2,-h,w,h); rr(-2.7,-h-2.6,5.4,4.2,1,'#8a6a42'); g.restore(); return; }
   g.save(); g.translate(x,y); g.rotate(ang); g.scale(k,k);
   g.beginPath(); g.roundRect(-5,-18,10,18,2.5); g.fillStyle='rgba(214,236,226,.9)'; g.fill(); outline(1.4);
   g.fillStyle='#e9a83a'; g.fillRect(-4,-11,8,10); g.fillStyle='#f3e2b8'; g.fillRect(-4,-9,8,5);
@@ -881,7 +940,7 @@ const S2 = {
   init(){ this.phase='aim'; this.m=rnd(); this.md=1; this.tries=0; this.t=0; this.acc=0; this.pts=0; this.drops=[]; this.emit=0; this.total=0; this.caught=0;
     this.bowl=W/2; this.kn=0; this.sayT=1.5; this.sag=0; this.walk=0; this.mv=false; this.flip=false; this.streak=0; },
   geom(){ const cx=W/2, gy=horizon+(H-horizon)*.42, k=Math.min(2,W/245), kp=k*.72, feetY=Math.min(H-10,gy+(H-gy)*.74);
-    return { cx, gy, k, kp, feetY, neck:{x:cx+16*k,y:gy-21*k}, bowlY:feetY-38*kp, A:Math.min(175,W*.31), bw:Math.max(70,W*.13),
+    return { cx, gy, k, kp, feetY, neck:ok('pig')?{x:cx+27*k,y:gy-19*k}:{x:cx+16*k,y:gy-21*k}, bowlY:feetY-38*kp, A:Math.min(175,W*.31), bw:Math.max(70,W*.13),
       barW:Math.min(W-70,340), barY:Math.max(64,gy-64*k-36) }; },
   update(dt){
     const G=this.geom(); this.t+=dt;
@@ -969,6 +1028,9 @@ const S3 = {
   init(){ this.t=0; this.cells=[]; this.fp={x:W/2,y:H*.8}; this.on=false; this.sayT=2; this.kb=false; this.kx=undefined; this.ky=undefined; this.pct=0; this.smT=0; this.burnt=0;
     for(let x=-34;x<=50;x+=7) for(let y=-20;y<=20;y+=7)
       if((x/35.5)**2+(y/21.5)**2<=1 || Math.hypot(x-37,y+1)<=15) this.cells.push({x,y,v:0,ok:false});
+    this.photo=ok('lie');
+    if(this.photo){ const im=IMG.lie, R=LIE_MASK.length, C=LIE_MASK[0].length; this.lw=94; this.lh=94*im.naturalHeight/im.naturalWidth; this.cs=this.lw/C; this.cells=[];
+      for(let j=0;j<R;j++) for(let i=0;i<C;i++) if(LIE_MASK[j][i]==='1') this.cells.push({x:-40+(i+.5)*this.lw/C,y:-this.lh/2+(j+.5)*this.lh/R,v:0,ok:false}); }
     const r=rng(5); this.straw=[]; for(let i=0;i<110;i++) this.straw.push([r()*2-1,r()*2-1,r()*TAU,8+r()*14]);
   },
   geom(){ const cx=W/2-6, cy=horizon+(H-horizon)*.5, k=Math.min(3.3,(W-44)/108,(H-horizon)*.78/62); return {cx,cy,k}; },
@@ -1000,6 +1062,24 @@ const S3 = {
     }
   },
   hud(){ return `Aranybarna: ${Math.round(this.pct*100)}% · ${Math.max(0,Math.ceil(this.D-this.t))} mp`; },
+  drawPhoto(G){   // a fekvő malac fotója, rajta a pörkölődés rétege
+    const im=IMG.lie, lw=this.lw, lh=this.lh;
+    let oc=this.oc; if(!oc){ oc=this.oc=document.createElement('canvas'); oc.width=im.naturalWidth; oc.height=im.naturalHeight; }
+    const o=oc.getContext('2d'), sx=oc.width/lw, sy=oc.height/lh, rad=this.cs*sx*1.05;
+    o.globalCompositeOperation='source-over'; o.globalAlpha=1; o.clearRect(0,0,oc.width,oc.height);
+    for(const c of this.cells){
+      if(c.v<.04) continue;
+      if(c.v<.55){ o.globalAlpha=c.v/.55*.7; o.fillStyle='rgb(206,140,86)'; }
+      else if(c.v<=1.3){ o.globalAlpha=.92; o.fillStyle=mix([204,138,80],[142,78,34],(c.v-.55)/.75); }
+      else { o.globalAlpha=.97; o.fillStyle=mix([84,46,26],[20,15,13],(c.v-1.3)/.25); }
+      o.beginPath(); o.arc((c.x+40)*sx,(c.y+lh/2)*sy,rad,0,TAU); o.fill();
+    }
+    o.globalAlpha=1; o.globalCompositeOperation='destination-in'; o.drawImage(im,0,0);
+    g.save(); g.translate(G.cx,G.cy); g.scale(G.k,G.k);
+    g.drawImage(im,-40,-lh/2,lw,lh);
+    g.globalCompositeOperation='multiply'; g.drawImage(oc,-40,-lh/2,lw,lh); g.globalCompositeOperation='source-over';
+    g.restore();
+  },
   col(v){ return v<.55 ? mix([244,176,184],[218,152,106],v/.55) : v<=1.3 ? mix([210,146,82],[150,84,38],(v-.55)/.75) : mix([110,60,30],[24,18,15],(v-1.3)/.25); },
   draw(){
     const G=this.geom(), k=G.k;
@@ -1009,6 +1089,7 @@ const S3 = {
     const ks=Math.min(1.45,k*.58);
     drawPerson(Math.max(28,G.cx-60*k),G.cy+10*k,hero(1,{k:ks,aL:.2,aR:.2}));
     drawPerson(Math.min(W-28,G.cx+68*k),G.cy+6*k,hero(2,{k:ks,aL:.2,aR:1.9,glass:true,flip:true}));
+    if(this.photo) this.drawPhoto(G); else {
     g.save(); g.translate(G.cx,G.cy); g.scale(k,k); g.lineJoin='round';
     const avg=this.cells.reduce((a,c)=>a+c.v,0)/this.cells.length, skin=this.col(avg), ln=mix([138,61,85],[40,24,18],avg);
     for(const lx of [[-20,14,-23,31],[-10,17,-11,33],[12,17,14,33],[21,14,25,30]]){ limb(lx,6,skin,ln); g.beginPath(); g.roundRect(lx[2]-3.6,lx[3]-2,7.2,5,2); g.fillStyle='#4a2a30'; g.fill(); }
@@ -1026,6 +1107,7 @@ const S3 = {
     g.beginPath(); g.ellipse(52,2,5.2,7.2,0,0,TAU); g.fillStyle=this.col(avg*.9); g.fill(); outline(1.4,ln); g.fillStyle='#5a2a2a'; ell(53,-1,1.1,1.7); ell(53,5,1.1,1.7);
     g.strokeStyle=INK; g.lineWidth=1.4; seg(40,-7,44,-3); seg(44,-7,40,-3);
     g.restore();
+    }
     // gázperzselő a böllér kezében
     const kt=Math.min(1.35,k*.52), hx=W*.85, hy=H-4;
     if(mode==='play'){
@@ -1118,11 +1200,8 @@ const S4 = {
     g.strokeStyle=INK; g.lineWidth=5.4; g.beginPath(); g.arc(40,ty-30,13,0,TAU); g.stroke(); g.strokeStyle='#5f656d'; g.lineWidth=3; g.stroke(); seg(40,ty-30,cw.x,cw.y); g.beginPath(); g.arc(cw.x,cw.y,4.4,0,TAU); g.fillStyle='#5a3a22'; g.fill(); outline(1.4);
     // bél töltés közben
     if(this.L>0){
-      const kc=this.kind, c1=kc?'#b89068':'#4a1c20', c2=kc?'#dcc09a':'#7c3440', wob=this.hold>0?Math.sin(tNow*40)*.9+this.hold*3:0, xe=Math.max(nx+7,x1-8);
-      g.lineCap='round'; g.strokeStyle=INK; g.lineWidth=19.4+wob; seg(nx+6,ty-11,xe,ty-11);
-      g.strokeStyle=c1; g.lineWidth=17+wob; seg(nx+6,ty-11,xe,ty-11);
-      g.strokeStyle=c2; g.lineWidth=3.5; seg(nx+8,ty-15.5,Math.max(nx+9,x1-10),ty-15.5);
-      g.fillStyle='#e9e2d0'; g.fillRect(x1-2,ty-13,6,4);
+      const wob=this.hold>0?Math.sin(tNow*40)*.5+this.hold*1.6:0;
+      g.save(); g.translate(0,ty-11); sausage(nx-2,Math.max(nx+20,x1+2),8.8+wob,this.kind); g.restore();
     }
     // zománcos tepsi
     ell(G.trayX+G.trayW/2,G.trayY+G.trayH+4,G.trayW*.5,6,'rgba(20,24,60,.2)');
@@ -1164,7 +1243,8 @@ const S5 = {
     for(let i=0;i<np;i++){
       const px=(i+.5)/np*(W-40)+20;
       g.beginPath(); g.ellipse(px,ty+3,31,7.5,0,0,TAU); g.fillStyle='#ffffff'; g.fill(); outline(2,'#2b4a8a');
-      for(let j=0;j<each;j++) hurka(px-4+j*4,ty-2-j*5,34,5.5,(i+j)%2,(j%2?.1:-.1));
+      if(ok('coil') && i%2===0) g.drawImage(IMG.coil,px-23,ty-25,46,30);
+      else for(let j=0;j<each;j++) hurka(px-4+j*4,ty-2-j*5,34,5.5,(i+j)%2,(j%2?.1:-.1));
       if(i<np-1) bottle(px+(W-40)/np/2,ty+2,0,.95);
     }
   },
@@ -1177,7 +1257,7 @@ const ORDER=['catch','stab','singe','stuff','tor'];
 const STG={catch:S1,stab:S2,singe:S3,stuff:S4,tor:S5};
 const CARD={
   title:{eyebrow:'Disznóvágás falun, metálra', title:'Böllérmetál',
-    text:'Hajnali hat, mínusz öt fok. Három disznóölő, egy malac, és az egész falu a kerítésnél. Ki fogja a kést? A másik kettő kerít és tart.', hint:'Hanggal az igazi: a választás indítja a zenét.'},
+    text:'Hajnali hat, mínusz öt fok. Három disznóölő, egy malac, és az egész falu a kerítésnél. Ki fogja a kést? A másik kettő kerít és tart.', hint:'Hanggal az igazi: a választás indítja a zenét. Fotók: mripp, Dave Hamster, danxoneil, Marit & Toomas Hinnosaar (CC BY 2.0), Bonnie Moreland (közkincs), rawpixel (CC0).'},
   catch:{eyebrow:'Első felvonás', title:'Fogd meg a fülit!', btn:'Utána!',
     text:'Húzd az ujjad vagy az egeret a hóban, a böllér arra fut (billentyűzeten a nyilak). Ha megvan a füle, koppints gyorsan, hogy ki ne csússzon, amíg a társaid odaérnek.',
     hint:'Pálinka: a gomb vagy a P billentyű. Minden kupica növeli a szorzót, de egyre jobban dülöngélsz. A hóba dobott üveg gyorsít is.'},
@@ -1261,7 +1341,7 @@ function resize(){
   DPR=Math.min(2,window.devicePixelRatio||1);
   S=clamp(Math.sqrt(vw*vh/(820*600)),.5,1.7); W=vw/S; H=vh/S;
   cv.width=Math.round(vw*DPR); cv.height=Math.round(vh*DPR); dc.width=cv.width; dc.height=cv.height;
-  horizon=clamp(H*.36,150,300);
+  horizon=clamp(H*(photoBg()?.4:.36),150,300);
   buildBackdrop(); clearDecals(); makeCrowd();
   if(cur && cur.layout) cur.layout();
   if(!snow.length){ const n=reduced?24:110; for(let i=0;i<n;i++) snow.push({x:rnd(),y:rnd(),z:rnd(.4,1),ph:rnd(TAU)}); }
@@ -1318,7 +1398,7 @@ function draw(){
   // reflektorok a tetőkről
   if(heavy && !reduced){
     g.save(); g.globalCompositeOperation='lighter';
-    const beams=[[chim.x-40,chim.y+10,W*.5+Math.sin(tNow*.8)*W*.3,'255,60,50'],[band.x+band.w*.4,band.roofY,W*.5+Math.sin(tNow*.63+2)*W*.34,'255,180,60']];
+    const beams=[[lights[0][0],lights[0][1],W*.5+Math.sin(tNow*.8)*W*.3,'255,60,50'],[lights[1][0],lights[1][1],W*.5+Math.sin(tNow*.63+2)*W*.34,'255,180,60']];
     for(const bm of beams){ const gr=g.createLinearGradient(bm[0],bm[1],bm[2],H); gr.addColorStop(0,`rgba(${bm[3]},${.16+.1*b})`); gr.addColorStop(1,`rgba(${bm[3]},0)`);
       g.fillStyle=gr; g.beginPath(); g.moveTo(bm[0],bm[1]); g.lineTo(bm[2]-W*.11,H); g.lineTo(bm[2]+W*.11,H); g.closePath(); g.fill(); }
     g.restore();
@@ -1355,6 +1435,7 @@ function draw(){
   // utómunka: kettős látás, vignetta, vér a lencsén, felirat
   if(drunk>1.6 && !reduced){ g.setTransform(1,0,0,1,0,0); g.globalAlpha=Math.min(.3,.14*(drunk-1.4)); g.drawImage(cv,Math.sin(tNow*2.2)*5*DPR*(drunk-1),Math.cos(tNow*1.6)*2*DPR); g.globalAlpha=1; }
   g.setTransform(1,0,0,1,0,0); g.drawImage(vg,0,0);
+  if(!reduced){ if(!grainPat) grainPat=g.createPattern(grainC,'repeat'); const ox=(Math.random()*128)|0, oy=(Math.random()*128)|0; g.translate(-ox,-oy); g.fillStyle=grainPat; g.fillRect(ox,oy,cv.width,cv.height); }
   g.setTransform(S*DPR,0,0,S*DPR,0,0);
   for(const l of lens){ const a=Math.min(1,(l.life-l.t)*.8)*.75, x=l.x*W, y=l.y*H+l.t*6, lr=rng(Math.floor(l.s*1000)); g.globalAlpha=a;
     for(let i=0;i<7;i++){ const an=lr()*TAU, d=lr()*l.r; ell(x+Math.cos(an)*d,y+Math.sin(an)*d*.8,l.r*(.25+lr()*.4),l.r*(.22+lr()*.34),i%3?'#a00f1a':'#7a0a12'); }
@@ -1378,7 +1459,7 @@ function frame(now){
 /* ---------- boot ---------- */
 function start(data){
   if(data && typeof data.pick==='number') setOrder(clamp(data.pick|0,0,2));
-  resize();
+  resize(); booted=true;
   if(data && data.stage && ORDER.includes(data.stage)){ score=data.score||0; if(data.res) res=data.res; gore=data.gore||0; showCard(data.stage); }
   else showCard('title');
   if(document.fonts && document.fonts.load){ document.fonts.load('700 15px "Barlow Condensed"'); document.fonts.load('40px "Pirata One"'); }
